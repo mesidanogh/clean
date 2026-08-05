@@ -15,7 +15,8 @@ service cloud.firestore {
         && request.resource.data.storeName.size() <= 200
         && request.resource.data.memo.size() <= 1000
         && request.resource.data.area.size() <= 100
-        && request.resource.data.reporterName.size() <= 50;
+        && request.resource.data.reporterName.size() <= 50
+        && request.resource.data.photoUrl.size() <= 900000;
 
       // 匿名ログイン同士は区別できないため、削除・更新は全員に許可しています。
       // 荒らし対策を強めたい場合は、この2行を allow delete, update: if false; に変更してください。

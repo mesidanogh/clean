@@ -16,17 +16,9 @@ import {
   onSnapshot,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import {
-  getStorage,
-  ref,
-  uploadBytes,
-  getDownloadURL,
-  deleteObject,
-} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const storage = getStorage(app);
 const auth = getAuth(app);
 
 let authReady = new Promise((resolve) => {
@@ -73,6 +65,36 @@ const els = {
 let allSightings = [];
 let searchMode = "product"; // "product" | "store"
 let selectedDetailId = null;
+let compressedPhotoDataUrl = "";
+
+// 写真はFirebase Storage(有料プラン必須)を使わず、縮小してFirestoreに直接保存する。
+function compressImage(file, maxDim = 800, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > height && width > maxDim) {
+        height = Math.round((height * maxDim) / width);
+        width = maxDim;
+      } else if (height >= width && height > maxDim) {
+        width = Math.round((width * maxDim) / height);
+        height = maxDim;
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(objectUrl);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = (e) => {
+      URL.revokeObjectURL(objectUrl);
+      reject(e);
+    };
+    img.src = objectUrl;
+  });
+}
 
 function showToast(msg) {
   els.toast.textContent = msg;
@@ -182,6 +204,7 @@ els.addBtn.addEventListener("click", () => {
   els.addForm.reset();
   els.photoPreview.hidden = true;
   els.officialLinkWrap.hidden = true;
+  compressedPhotoDataUrl = "";
   els.addModal.showModal();
 });
 
@@ -202,15 +225,23 @@ els.productNameInput.addEventListener("input", () => {
   els.officialSegaLink.href = `https://segaplaza.jp/search/?q=${encodeURIComponent(name)}&type=prize`;
 });
 
-els.photoInput.addEventListener("change", () => {
+els.photoInput.addEventListener("change", async () => {
   const file = els.photoInput.files[0];
   if (!file) {
     els.photoPreview.hidden = true;
+    compressedPhotoDataUrl = "";
     return;
   }
-  const url = URL.createObjectURL(file);
-  els.photoPreview.src = url;
-  els.photoPreview.hidden = false;
+  try {
+    compressedPhotoDataUrl = await compressImage(file);
+    els.photoPreview.src = compressedPhotoDataUrl;
+    els.photoPreview.hidden = false;
+  } catch (err) {
+    console.error(err);
+    compressedPhotoDataUrl = "";
+    els.photoPreview.hidden = true;
+    showToast("写真の読み込みに失敗しました");
+  }
 });
 
 els.addForm.addEventListener("submit", async (e) => {
@@ -227,15 +258,7 @@ els.addForm.addEventListener("submit", async (e) => {
     const company = fd.get("company");
     const memo = fd.get("memo").trim();
     const reporterName = fd.get("reporterName").trim();
-    const photoFile = fd.get("photo");
-
-    let photoUrl = "";
-    if (photoFile && photoFile.size > 0) {
-      const path = `sightings/${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      const storageRef = ref(storage, path);
-      await uploadBytes(storageRef, photoFile);
-      photoUrl = await getDownloadURL(storageRef);
-    }
+    const photoUrl = compressedPhotoDataUrl;
 
     await addDoc(collection(db, "sightings"), {
       productName,
@@ -289,18 +312,7 @@ els.deleteBtn.addEventListener("click", async () => {
   if (!confirm("この記録を削除しますか？")) return;
   try {
     await authReady;
-    const target = allSightings.find((s) => s.id === selectedDetailId);
     await deleteDoc(doc(db, "sightings", selectedDetailId));
-    if (target && target.photoUrl) {
-      try {
-        const path = decodeURIComponent(
-          new URL(target.photoUrl).pathname.split("/o/")[1].split("?")[0]
-        );
-        await deleteObject(ref(storage, path));
-      } catch (e) {
-        // photo cleanup best-effort
-      }
-    }
     els.detailModal.close();
     showToast("削除しました");
   } catch (err) {
