@@ -1,0 +1,14 @@
+rules_version = '2';
+
+// Firebaseコンソール →「Storage」→「ルール」タブに、この内容をそのまま貼り付けてください。
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /sightings/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.resource.size < 8 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if request.auth != null;
+    }
+  }
+}

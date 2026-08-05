@@ -1,0 +1,26 @@
+rules_version = '2';
+
+// Firebaseコンソール →「Firestore Database」→「ルール」タブに、この内容をそのまま貼り付けてください。
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /sightings/{sightingId} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null
+        && request.resource.data.productName is string
+        && request.resource.data.productName.size() > 0
+        && request.resource.data.productName.size() <= 200
+        && request.resource.data.storeName is string
+        && request.resource.data.storeName.size() > 0
+        && request.resource.data.storeName.size() <= 200
+        && request.resource.data.memo.size() <= 1000
+        && request.resource.data.area.size() <= 100
+        && request.resource.data.reporterName.size() <= 50;
+
+      // 匿名ログイン同士は区別できないため、削除・更新は全員に許可しています。
+      // 荒らし対策を強めたい場合は、この2行を allow delete, update: if false; に変更してください。
+      allow update: if false;
+      allow delete: if request.auth != null;
+    }
+  }
+}

@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>クレサガ - 景品お探しナビ</title>
+<meta name="description" content="クレーンゲームの景品がどこのお店にあるかを、自分と友達で記録・検索できるアプリ">
+<meta name="theme-color" content="#7c3aed">
+
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="クレサガ">
+
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="appbar">
+  <h1 class="appbar_title">🎯 クレサガ</h1>
+  <button id="shareBtn" class="iconBtn" title="友達に共有" aria-label="友達に共有">
+    <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 1 0-3-3c0 .24.04.47.09.7L8.04 9.81A2.99 2.99 0 0 0 6 9a3 3 0 1 0 0 6c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65a2.92 2.92 0 1 0 2.92-2.92Z"/></svg>
+  </button>
+</header>
+
+<main class="app">
+
+  <section class="searchBar">
+    <div class="searchMode" role="tablist" aria-label="検索モード">
+      <button class="searchMode_btn is-active" data-mode="product" role="tab" aria-selected="true">商品名で検索</button>
+      <button class="searchMode_btn" data-mode="store" role="tab" aria-selected="false">店舗名で検索</button>
+    </div>
+    <div class="searchInput_wrap">
+      <input id="searchInput" type="search" placeholder="商品名を入力…" autocomplete="off">
+      <button id="clearSearch" class="clearBtn" aria-label="クリア" hidden>✕</button>
+    </div>
+  </section>
+
+  <section id="resultCount" class="resultCount"></section>
+
+  <section id="list" class="list"></section>
+
+  <section id="emptyState" class="emptyState" hidden>
+    <p class="emptyState_emoji">🕹️</p>
+    <p>まだ記録がありません。<br>右下の「＋」から見かけた景品を登録してみましょう。</p>
+  </section>
+
+</main>
+
+<button id="addBtn" class="fab" aria-label="景品を登録する">＋</button>
+
+<!-- 登録モーダル -->
+<dialog id="addModal" class="modal">
+  <form id="addForm" class="modalForm" method="dialog">
+    <div class="modalForm_header">
+      <h2>景品を登録</h2>
+      <button type="button" class="modalClose" data-close>✕</button>
+    </div>
+
+    <label class="field">
+      <span class="field_label">商品名 <em>必須</em></span>
+      <input name="productName" type="text" required placeholder="例）鬼滅の刃 ちびぐるみvol.9">
+    </label>
+
+    <p id="officialLinkWrap" class="officialLinkWrap" hidden>
+      公式サイトで画像を確認 →
+      <a id="officialBandaiLink" target="_blank" rel="noopener">バンダイ</a>
+      /
+      <a id="officialSegaLink" target="_blank" rel="noopener">セガ</a>
+    </p>
+
+    <label class="field">
+      <span class="field_label">お店の名前 <em>必須</em></span>
+      <input name="storeName" type="text" required placeholder="例）〇〇ゲームセンター 渋谷店">
+    </label>
+
+    <label class="field">
+      <span class="field_label">エリア（都道府県など）</span>
+      <input name="area" type="text" placeholder="例）東京都渋谷区">
+    </label>
+
+    <label class="field">
+      <span class="field_label">メーカー</span>
+      <select name="company">
+        <option value="">選択しない</option>
+        <option value="バンダイ/バンプレスト">バンダイ / バンプレスト</option>
+        <option value="セガ">セガ</option>
+        <option value="タイトー">タイトー</option>
+        <option value="フリュー">フリュー</option>
+        <option value="その他">その他</option>
+      </select>
+    </label>
+
+    <label class="field">
+      <span class="field_label">写真</span>
+      <input name="photo" type="file" accept="image/*" capture="environment">
+      <img id="photoPreview" class="photoPreview" hidden>
+    </label>
+
+    <label class="field">
+      <span class="field_label">メモ</span>
+      <textarea name="memo" rows="2" placeholder="残り台数、気づいたことなど"></textarea>
+    </label>
+
+    <label class="field">
+      <span class="field_label">登録者名（任意）</span>
+      <input name="reporterName" type="text" placeholder="例）けあひ">
+    </label>
+
+    <div class="modalForm_actions">
+      <button type="button" class="btn btn-ghost" data-close>キャンセル</button>
+      <button type="submit" class="btn btn-primary" id="submitBtn">登録する</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 詳細モーダル -->
+<dialog id="detailModal" class="modal">
+  <div class="modalDetail">
+    <button type="button" class="modalClose" data-close>✕</button>
+    <img id="detailPhoto" class="detailPhoto" hidden>
+    <h2 id="detailProductName"></h2>
+    <dl class="detailList">
+      <dt>お店</dt><dd id="detailStoreName"></dd>
+      <dt>エリア</dt><dd id="detailArea"></dd>
+      <dt>メーカー</dt><dd id="detailCompany"></dd>
+      <dt>登録日</dt><dd id="detailDate"></dd>
+      <dt>登録者</dt><dd id="detailReporter"></dd>
+      <dt>メモ</dt><dd id="detailMemo"></dd>
+    </dl>
+    <button type="button" id="deleteBtn" class="btn btn-danger">この記録を削除</button>
+  </div>
+</dialog>
+
+<div id="toast" class="toast" hidden></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
