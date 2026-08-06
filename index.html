@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>クレサガ - 景品お探しナビ</title>
+<title>CLESON - 景品お探しナビ</title>
 <meta name="description" content="クレーンゲームの景品がどこのお店にあるかを、自分と友達で記録・検索できるアプリ">
 <meta name="theme-color" content="#7c3aed">
 
@@ -12,14 +12,14 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="クレサガ">
+<meta name="apple-mobile-web-app-title" content="CLESON">
 
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <header class="appbar">
-  <h1 class="appbar_title">🎯 クレサガ</h1>
+  <h1 class="appbar_title">🎯 CLESON</h1>
   <button id="shareBtn" class="iconBtn" title="友達に共有" aria-label="友達に共有">
     <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 1 0-3-3c0 .24.04.47.09.7L8.04 9.81A2.99 2.99 0 0 0 6 9a3 3 0 1 0 0 6c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65a2.92 2.92 0 1 0 2.92-2.92Z"/></svg>
   </button>
@@ -45,12 +45,12 @@
 
   <section id="emptyState" class="emptyState" hidden>
     <p class="emptyState_emoji">🕹️</p>
-    <p>見つかりませんでした。<br>namco以外の店舗で見かけたときは、右下の「＋」から記録できます。</p>
+    <p>見つかりませんでした。<br>自動データにない店舗で見かけたときは、右下の「＋」から記録できます。</p>
   </section>
 
 </main>
 
-<button id="addBtn" class="fab" aria-label="namco以外の目撃情報を登録する">＋</button>
+<button id="addBtn" class="fab" aria-label="自動データにない店舗の目撃情報を登録する">＋</button>
 
 <!-- 登録モーダル -->
 <dialog id="addModal" class="modal">
@@ -59,7 +59,7 @@
       <h2>景品を登録</h2>
       <button type="button" class="modalClose" data-close>✕</button>
     </div>
-    <p class="modalForm_note">namco店舗の入荷情報は自動更新されています。ここではそれ以外の店舗（GiGO・タイトーステーションなど）で見かけた景品を記録できます。</p>
+    <p class="modalForm_note">namco・タイトーの店舗は入荷情報が自動更新されています。ここではそれ以外の店舗（GiGO・アドアーズなど）で見かけた景品を記録できます。</p>
 
     <label class="field">
       <span class="field_label">商品名 <em>必須</em></span>

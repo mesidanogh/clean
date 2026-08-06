@@ -71,8 +71,8 @@ let searchMode = "product"; // "product" | "store"
 let selectedDetail = null;
 let compressedPhotoDataUrl = "";
 
-// ---------- 自動取得データ(namcoブランド店舗)の読み込み ----------
-// data/prizes.json は { products, stores, placements } の形式。
+// ---------- 自動取得データ(公式に店舗×商品対応を公開している企業)の読み込み ----------
+// data/prizes.json は { companies, products, stores, placements } の形式。
 // 同じ商品が多数の店舗に置かれているため、商品マスタ/店舗マスタを分離し
 // placements([商品index, 店舗index])だけで対応関係を持たせてファイルを軽量化している。
 fetch("./data/prizes.json")
@@ -80,24 +80,26 @@ fetch("./data/prizes.json")
   .then((data) => {
     const products = data.products || [];
     const stores = data.stores || [];
+    const companies = data.companies || {};
     autoRecords = (data.placements || []).map(([productIdx, storeIdx]) => {
       const p = products[productIdx];
       const store = stores[storeIdx];
       return {
-        id: `auto-${store.slug}-${p.id}`,
+        id: `auto-${store.id}-${p.id}`,
         source: "auto",
         productName: p.name,
         storeName: store.name,
         storeUrl: store.url,
         area: "",
-        company: "バンダイナムコ(namco)",
+        company: companies[p.company] || p.company,
         memo: p.date,
         photoUrl: p.image,
         reporterName: "公式データ(自動取得)",
       };
     });
+    const companyNames = Object.values(companies).join("・");
     els.dataInfo.textContent = data.updatedAt
-      ? `namco系 ${stores.length}店舗のデータを${data.updatedAt.slice(0, 10)}に自動取得（毎日更新）`
+      ? `${companyNames} 計${stores.length}店舗のデータを${data.updatedAt.slice(0, 10)}に自動取得（毎日更新）`
       : "";
     mergeAndRender();
   })
@@ -216,7 +218,7 @@ function render() {
         <p class="card_name">${escapeHtml(s.productName)}</p>
         <p class="card_store">${escapeHtml(s.storeName)}</p>
         <div class="card_meta">
-          ${s.source === "auto" ? `<span class="badge badge-auto">namco公式</span>` : ""}
+          ${s.source === "auto" ? `<span class="badge badge-auto">${escapeHtml(s.company)}公式</span>` : ""}
           ${s.area ? `<span class="badge">${escapeHtml(s.area)}</span>` : ""}
           ${s.company && s.source !== "auto" ? `<span class="badge">${escapeHtml(s.company)}</span>` : ""}
           <span>${dateLabel}</span>
@@ -380,7 +382,7 @@ els.deleteBtn.addEventListener("click", async () => {
 // ---------- Share ----------
 els.shareBtn.addEventListener("click", async () => {
   const shareData = {
-    title: "クレサガ - 景品お探しナビ",
+    title: "CLESON - 景品お探しナビ",
     text: "クレーンゲームの景品がどこにあるか記録・検索できるアプリだよ！",
     url: location.href,
   };

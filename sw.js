@@ -1,4 +1,4 @@
-const CACHE_NAME = "kuresaga-v1";
+const CACHE_NAME = "cleson-v2";
 const APP_SHELL = [
   "./",
   "./index.html",
