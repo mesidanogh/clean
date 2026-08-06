@@ -1,0 +1,31 @@
+name: 景品データを自動更新
+
+on:
+  schedule:
+    # 毎日 06:00 JST (21:00 UTC) に実行
+    - cron: "0 21 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 景品データを取得
+        run: python3 scripts/scrape_prizes.py
+
+      - name: 変更があればコミット
+        run: |
+          git config user.name "kuresaga-bot"
+          git config user.email "actions@users.noreply.github.com"
+          if ! git diff --quiet -- data/prizes.json; then
+            git add data/prizes.json
+            git commit -m "景品データを自動更新"
+            git push
+          else
+            echo "変更なし"
+          fi

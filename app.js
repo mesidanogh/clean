@@ -57,15 +57,53 @@ const els = {
   detailDate: document.getElementById("detailDate"),
   detailReporter: document.getElementById("detailReporter"),
   detailMemo: document.getElementById("detailMemo"),
+  detailOfficialLink: document.getElementById("detailOfficialLink"),
   deleteBtn: document.getElementById("deleteBtn"),
   shareBtn: document.getElementById("shareBtn"),
   toast: document.getElementById("toast"),
+  dataInfo: document.getElementById("dataInfo"),
 };
 
-let allSightings = [];
+let manualSightings = [];
+let autoRecords = [];
+let allRecords = [];
 let searchMode = "product"; // "product" | "store"
-let selectedDetailId = null;
+let selectedDetail = null;
 let compressedPhotoDataUrl = "";
+
+// ---------- 自動取得データ(namcoブランド店舗)の読み込み ----------
+// data/prizes.json は { products, stores, placements } の形式。
+// 同じ商品が多数の店舗に置かれているため、商品マスタ/店舗マスタを分離し
+// placements([商品index, 店舗index])だけで対応関係を持たせてファイルを軽量化している。
+fetch("./data/prizes.json")
+  .then((res) => (res.ok ? res.json() : Promise.reject(new Error("not found"))))
+  .then((data) => {
+    const products = data.products || [];
+    const stores = data.stores || [];
+    autoRecords = (data.placements || []).map(([productIdx, storeIdx]) => {
+      const p = products[productIdx];
+      const store = stores[storeIdx];
+      return {
+        id: `auto-${store.slug}-${p.id}`,
+        source: "auto",
+        productName: p.name,
+        storeName: store.name,
+        storeUrl: store.url,
+        area: "",
+        company: "バンダイナムコ(namco)",
+        memo: p.date,
+        photoUrl: p.image,
+        reporterName: "公式データ(自動取得)",
+      };
+    });
+    els.dataInfo.textContent = data.updatedAt
+      ? `namco系 ${stores.length}店舗のデータを${data.updatedAt.slice(0, 10)}に自動取得（毎日更新）`
+      : "";
+    mergeAndRender();
+  })
+  .catch((err) => {
+    console.warn("自動取得データを読み込めませんでした", err);
+  });
 
 // 写真はFirebase Storage(有料プラン必須)を使わず、縮小してFirestoreに直接保存する。
 function compressImage(file, maxDim = 800, quality = 0.7) {
@@ -103,19 +141,24 @@ function showToast(msg) {
   showToast._t = setTimeout(() => (els.toast.hidden = true), 2200);
 }
 
-// ---------- Firestore realtime subscription ----------
+// ---------- Firestore realtime subscription (namco以外の手動報告) ----------
 const q = query(collection(db, "sightings"), orderBy("createdAt", "desc"));
 onSnapshot(
   q,
   (snap) => {
-    allSightings = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    render();
+    manualSightings = snap.docs.map((d) => ({ id: d.id, source: "manual", ...d.data() }));
+    mergeAndRender();
   },
   (err) => {
     console.error(err);
     showToast("データの取得に失敗しました。Firebase設定を確認してください。");
   }
 );
+
+function mergeAndRender() {
+  allRecords = [...autoRecords, ...manualSightings];
+  render();
+}
 
 // ---------- Search ----------
 els.searchModeBtns.forEach((btn) => {
@@ -145,7 +188,7 @@ els.clearSearch.addEventListener("click", () => {
 // ---------- Render list ----------
 function render() {
   const kw = els.searchInput.value.trim().toLowerCase();
-  const filtered = allSightings.filter((s) => {
+  const filtered = allRecords.filter((s) => {
     if (!kw) return true;
     const field = searchMode === "product" ? s.productName : s.storeName;
     return (field || "").toLowerCase().includes(kw);
@@ -153,7 +196,7 @@ function render() {
 
   els.resultCount.textContent = kw
     ? `${filtered.length}件ヒット`
-    : `全${allSightings.length}件`;
+    : `全${allRecords.length}件`;
 
   els.list.innerHTML = "";
   els.emptyState.hidden = filtered.length > 0;
@@ -162,19 +205,21 @@ function render() {
     const card = document.createElement("button");
     card.type = "button";
     card.className = "card";
+    const dateLabel = s.source === "auto" ? escapeHtml(s.memo || "") : formatDate(s.createdAt);
     card.innerHTML = `
       <div class="card_thumb">${
         s.photoUrl
-          ? `<img src="${s.photoUrl}" alt="">`
+          ? `<img src="${s.photoUrl}" alt="" onerror="this.remove()">`
           : `🎁`
       }</div>
       <div class="card_body">
         <p class="card_name">${escapeHtml(s.productName)}</p>
         <p class="card_store">${escapeHtml(s.storeName)}</p>
         <div class="card_meta">
+          ${s.source === "auto" ? `<span class="badge badge-auto">namco公式</span>` : ""}
           ${s.area ? `<span class="badge">${escapeHtml(s.area)}</span>` : ""}
-          ${s.company ? `<span class="badge">${escapeHtml(s.company)}</span>` : ""}
-          <span>${formatDate(s.createdAt)}</span>
+          ${s.company && s.source !== "auto" ? `<span class="badge">${escapeHtml(s.company)}</span>` : ""}
+          <span>${dateLabel}</span>
         </div>
       </div>
     `;
@@ -284,7 +329,7 @@ els.addForm.addEventListener("submit", async (e) => {
 
 // ---------- Detail modal ----------
 function openDetail(s) {
-  selectedDetailId = s.id;
+  selectedDetail = s;
   if (s.photoUrl) {
     els.detailPhoto.src = s.photoUrl;
     els.detailPhoto.hidden = false;
@@ -295,9 +340,20 @@ function openDetail(s) {
   els.detailStoreName.textContent = s.storeName;
   els.detailArea.textContent = s.area || "―";
   els.detailCompany.textContent = s.company || "―";
-  els.detailDate.textContent = formatFullDate(s.createdAt);
   els.detailReporter.textContent = s.reporterName || "―";
   els.detailMemo.textContent = s.memo || "―";
+
+  if (s.source === "auto") {
+    els.detailDate.textContent = s.memo || "―";
+    els.detailOfficialLink.href = s.storeUrl;
+    els.detailOfficialLink.hidden = false;
+    els.deleteBtn.hidden = true;
+  } else {
+    els.detailDate.textContent = formatFullDate(s.createdAt);
+    els.detailOfficialLink.hidden = true;
+    els.deleteBtn.hidden = false;
+  }
+
   els.detailModal.showModal();
 }
 
@@ -308,11 +364,11 @@ function formatFullDate(ts) {
 }
 
 els.deleteBtn.addEventListener("click", async () => {
-  if (!selectedDetailId) return;
+  if (!selectedDetail || selectedDetail.source !== "manual") return;
   if (!confirm("この記録を削除しますか？")) return;
   try {
     await authReady;
-    await deleteDoc(doc(db, "sightings", selectedDetailId));
+    await deleteDoc(doc(db, "sightings", selectedDetail.id));
     els.detailModal.close();
     showToast("削除しました");
   } catch (err) {

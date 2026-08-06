@@ -39,17 +39,18 @@
   </section>
 
   <section id="resultCount" class="resultCount"></section>
+  <p id="dataInfo" class="dataInfo"></p>
 
   <section id="list" class="list"></section>
 
   <section id="emptyState" class="emptyState" hidden>
     <p class="emptyState_emoji">🕹️</p>
-    <p>まだ記録がありません。<br>右下の「＋」から見かけた景品を登録してみましょう。</p>
+    <p>見つかりませんでした。<br>namco以外の店舗で見かけたときは、右下の「＋」から記録できます。</p>
   </section>
 
 </main>
 
-<button id="addBtn" class="fab" aria-label="景品を登録する">＋</button>
+<button id="addBtn" class="fab" aria-label="namco以外の目撃情報を登録する">＋</button>
 
 <!-- 登録モーダル -->
 <dialog id="addModal" class="modal">
@@ -58,6 +59,7 @@
       <h2>景品を登録</h2>
       <button type="button" class="modalClose" data-close>✕</button>
     </div>
+    <p class="modalForm_note">namco店舗の入荷情報は自動更新されています。ここではそれ以外の店舗（GiGO・タイトーステーションなど）で見かけた景品を記録できます。</p>
 
     <label class="field">
       <span class="field_label">商品名 <em>必須</em></span>
@@ -130,6 +132,7 @@
       <dt>登録者</dt><dd id="detailReporter"></dd>
       <dt>メモ</dt><dd id="detailMemo"></dd>
     </dl>
+    <a id="detailOfficialLink" class="btn btn-ghost" style="display:block;text-align:center;text-decoration:none;" target="_blank" rel="noopener" hidden>公式サイトの店舗ページを見る</a>
     <button type="button" id="deleteBtn" class="btn btn-danger">この記録を削除</button>
   </div>
 </dialog>
