@@ -379,22 +379,45 @@ els.deleteBtn.addEventListener("click", async () => {
   }
 });
 
-// ---------- Share ----------
-els.shareBtn.addEventListener("click", async () => {
+// ---------- Share (QRコード) ----------
+const shareModal = document.getElementById("shareModal");
+const qrcodeContainer = document.getElementById("qrcodeContainer");
+const shareUrlText = document.getElementById("shareUrlText");
+const copyUrlBtn = document.getElementById("copyUrlBtn");
+const nativeShareBtn = document.getElementById("nativeShareBtn");
+let qrRendered = false;
+
+els.shareBtn.addEventListener("click", () => {
+  shareUrlText.textContent = location.href;
+  if (!qrRendered && window.QRCode) {
+    new QRCode(qrcodeContainer, {
+      text: location.href,
+      width: 180,
+      height: 180,
+      colorDark: "#221c2e",
+      colorLight: "#ffffff",
+    });
+    qrRendered = true;
+  }
+  nativeShareBtn.hidden = !navigator.share;
+  shareModal.showModal();
+});
+
+copyUrlBtn.addEventListener("click", async () => {
+  await navigator.clipboard.writeText(location.href);
+  showToast("URLをコピーしました！");
+});
+
+nativeShareBtn.addEventListener("click", async () => {
   const shareData = {
     title: "CLESON - 景品お探しナビ",
     text: "クレーンゲームの景品がどこにあるか記録・検索できるアプリだよ！",
     url: location.href,
   };
-  if (navigator.share) {
-    try {
-      await navigator.share(shareData);
-    } catch (e) {
-      /* user cancelled */
-    }
-  } else {
-    await navigator.clipboard.writeText(location.href);
-    showToast("URLをコピーしました！");
+  try {
+    await navigator.share(shareData);
+  } catch (e) {
+    /* user cancelled */
   }
 });
 

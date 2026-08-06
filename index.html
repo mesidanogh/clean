@@ -137,8 +137,24 @@
   </div>
 </dialog>
 
+<!-- 共有モーダル -->
+<dialog id="shareModal" class="modal">
+  <div class="modalDetail">
+    <button type="button" class="modalClose" data-close>✕</button>
+    <h2>友達に共有</h2>
+    <p class="shareModal_hint">このQRコードを読み取ると、友達もすぐにCLESONを開けます。</p>
+    <div id="qrcodeContainer" class="qrcodeContainer"></div>
+    <p id="shareUrlText" class="shareUrlText"></p>
+    <div class="modalForm_actions">
+      <button type="button" id="copyUrlBtn" class="btn btn-ghost">URLをコピー</button>
+      <button type="button" id="nativeShareBtn" class="btn btn-primary" hidden>友達に送る</button>
+    </div>
+  </div>
+</dialog>
+
 <div id="toast" class="toast" hidden></div>
 
+<script src="vendor/qrcode.min.js"></script>
 <script type="module" src="app.js"></script>
 </body>
 </html>
