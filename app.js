@@ -59,6 +59,10 @@ const els = {
   detailMemo: document.getElementById("detailMemo"),
   detailOfficialLink: document.getElementById("detailOfficialLink"),
   deleteBtn: document.getElementById("deleteBtn"),
+  storesModal: document.getElementById("storesModal"),
+  storesModalPhoto: document.getElementById("storesModalPhoto"),
+  storesModalProductName: document.getElementById("storesModalProductName"),
+  storesModalList: document.getElementById("storesModalList"),
   shareBtn: document.getElementById("shareBtn"),
   toast: document.getElementById("toast"),
   dataInfo: document.getElementById("dataInfo"),
@@ -188,6 +192,26 @@ els.clearSearch.addEventListener("click", () => {
 });
 
 // ---------- Render list ----------
+// 商品名検索モードでは、同じ商品が複数店舗に置かれていても1枚のカードにまとめ、
+// タップしたら店舗一覧(storesModal)を開く形にする。店舗名検索モードでは
+// 「その店舗に何があるか」を見たいので、従来どおり1件ずつ表示する。
+function groupByProduct(records) {
+  const groups = [];
+  const indexByName = new Map();
+  records.forEach((s) => {
+    const key = (s.productName || "").trim();
+    let group = indexByName.get(key);
+    if (!group) {
+      group = { productName: s.productName, photoUrl: "", records: [] };
+      indexByName.set(key, group);
+      groups.push(group);
+    }
+    if (!group.photoUrl && s.photoUrl) group.photoUrl = s.photoUrl;
+    group.records.push(s);
+  });
+  return groups;
+}
+
 function render() {
   const kw = els.searchInput.value.trim().toLowerCase();
   const filtered = allRecords.filter((s) => {
@@ -196,38 +220,115 @@ function render() {
     return (field || "").toLowerCase().includes(kw);
   });
 
+  const groups = searchMode === "product" ? groupByProduct(filtered) : null;
+  const displayCount = groups ? groups.length : filtered.length;
+
   els.resultCount.textContent = kw
-    ? `${filtered.length}件ヒット`
-    : `全${allRecords.length}件`;
+    ? `${displayCount}件ヒット`
+    : `全${displayCount}件`;
 
   els.list.innerHTML = "";
-  els.emptyState.hidden = filtered.length > 0;
+  els.emptyState.hidden = displayCount > 0;
 
-  filtered.forEach((s) => {
-    const card = document.createElement("button");
-    card.type = "button";
-    card.className = "card";
-    const dateLabel = s.source === "auto" ? escapeHtml(s.memo || "") : formatDate(s.createdAt);
-    card.innerHTML = `
-      <div class="card_thumb">${
-        s.photoUrl
-          ? `<img src="${s.photoUrl}" alt="" onerror="this.remove()">`
-          : `🎁`
-      }</div>
-      <div class="card_body">
-        <p class="card_name">${escapeHtml(s.productName)}</p>
-        <p class="card_store">${escapeHtml(s.storeName)}</p>
-        <div class="card_meta">
-          ${s.source === "auto" ? `<span class="badge badge-auto">${escapeHtml(s.company)}公式</span>` : ""}
-          ${s.area ? `<span class="badge">${escapeHtml(s.area)}</span>` : ""}
-          ${s.company && s.source !== "auto" ? `<span class="badge">${escapeHtml(s.company)}</span>` : ""}
-          <span>${dateLabel}</span>
-        </div>
+  if (groups) {
+    groups.forEach((group) => renderProductCard(group));
+  } else {
+    filtered.forEach((s) => renderSightingCard(s));
+  }
+}
+
+function renderProductCard(group) {
+  const first = group.records[0];
+  const multi = group.records.length > 1;
+  const card = document.createElement("button");
+  card.type = "button";
+  card.className = "card";
+  card.innerHTML = `
+    <div class="card_thumb">${
+      group.photoUrl
+        ? `<img src="${group.photoUrl}" alt="" onerror="this.remove()">`
+        : `🎁`
+    }</div>
+    <div class="card_body">
+      <p class="card_name">${escapeHtml(group.productName)}</p>
+      <p class="card_store">${multi ? `${group.records.length}店舗で見つかっています` : escapeHtml(first.storeName)}</p>
+      <div class="card_meta">
+        ${multi ? "" : renderCardMeta(first)}
       </div>
-    `;
-    card.addEventListener("click", () => openDetail(s));
-    els.list.appendChild(card);
+    </div>
+  `;
+  card.addEventListener("click", () => {
+    if (multi) {
+      openStoresList(group);
+    } else {
+      openDetail(first);
+    }
   });
+  els.list.appendChild(card);
+}
+
+function renderCardMeta(s) {
+  const dateLabel = s.source === "auto" ? escapeHtml(s.memo || "") : formatDate(s.createdAt);
+  return `
+    ${s.source === "auto" ? `<span class="badge badge-auto">${escapeHtml(s.company)}公式</span>` : ""}
+    ${s.area ? `<span class="badge">${escapeHtml(s.area)}</span>` : ""}
+    ${s.company && s.source !== "auto" ? `<span class="badge">${escapeHtml(s.company)}</span>` : ""}
+    <span>${dateLabel}</span>
+  `;
+}
+
+function renderSightingCard(s) {
+  const card = document.createElement("button");
+  card.type = "button";
+  card.className = "card";
+  card.innerHTML = `
+    <div class="card_thumb">${
+      s.photoUrl
+        ? `<img src="${s.photoUrl}" alt="" onerror="this.remove()">`
+        : `🎁`
+    }</div>
+    <div class="card_body">
+      <p class="card_name">${escapeHtml(s.productName)}</p>
+      <p class="card_store">${escapeHtml(s.storeName)}</p>
+      <div class="card_meta">${renderCardMeta(s)}</div>
+    </div>
+  `;
+  card.addEventListener("click", () => openDetail(s));
+  els.list.appendChild(card);
+}
+
+// 同じ商品が見つかった店舗の一覧を表示する。
+function openStoresList(group) {
+  if (group.photoUrl) {
+    els.storesModalPhoto.src = group.photoUrl;
+    els.storesModalPhoto.hidden = false;
+  } else {
+    els.storesModalPhoto.hidden = true;
+  }
+  els.storesModalProductName.textContent = group.productName;
+
+  els.storesModalList.innerHTML = "";
+  group.records.forEach((s) => {
+    const li = document.createElement("li");
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "storeRow";
+    row.innerHTML = `
+      <div class="storeRow_body">
+        <p class="storeRow_name">${escapeHtml(s.storeName)}</p>
+        <div class="storeRow_meta">${renderCardMeta(s)}</div>
+      </div>
+      <span class="storeRow_arrow">›</span>
+    `;
+    row.addEventListener("click", () => {
+      els.storesModal.close();
+      openDetail(s);
+    });
+    li.appendChild(row);
+    els.storesModalList.appendChild(li);
+  });
+
+  els.storesModal.showModal();
 }
 
 function escapeHtml(str) {
