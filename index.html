@@ -137,6 +137,17 @@
   </div>
 </dialog>
 
+<!-- 店舗一覧モーダル(同じ商品を複数店舗で見つけた場合) -->
+<dialog id="storesModal" class="modal">
+  <div class="modalDetail">
+    <button type="button" class="modalClose" data-close>✕</button>
+    <img id="storesModalPhoto" class="detailPhoto" hidden>
+    <h2 id="storesModalProductName"></h2>
+    <p class="storesModal_hint">この商品が見つかっている店舗一覧です。タップすると詳細が見られます。</p>
+    <ul id="storesModalList" class="storeList"></ul>
+  </div>
+</dialog>
+
 <!-- 共有モーダル -->
 <dialog id="shareModal" class="modal">
   <div class="modalDetail">
