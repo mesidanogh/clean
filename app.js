@@ -548,7 +548,7 @@ els.shareBtn.addEventListener("click", () => {
       text: location.href,
       width: 180,
       height: 180,
-      colorDark: "#221c2e",
+      colorDark: "#2b2013",
       colorLight: "#ffffff",
     });
     qrRendered = true;
