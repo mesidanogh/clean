@@ -8,12 +8,6 @@
 
 GiGO(旧セガ運営)など、店舗×商品の対応を公開していないチェーンは対象外。
 
-全国全店舗を巡回するとデータ量が非常に重くなるため、最終的な出力は東海地方
-(愛知・岐阜・三重・静岡)の店舗だけに絞り込む。公式サイトが店舗ごとの都道府県を
-構造化データとして公開していないため、店舗名に含まれる市区町村名などから判定する
-(TOKAI_KEYWORDS / TOKAI_EXCLUDE_KEYWORDS)。対象地域を変えたい場合はこの2つの
-リストを書き換える。
-
 標準ライブラリのみで動作するため、ローカルでもGitHub Actions上でも追加インストール不要で実行できる。
 """
 
@@ -37,39 +31,6 @@ COMPANIES = {
     "namco": "バンダイナムコ(namco)",
     "taito": "タイトー",
 }
-
-# 店舗名にこれらの語句が含まれていれば東海地方(愛知・岐阜・三重・静岡)の店舗とみなす。
-# 「岐阜」「静岡」のように都道府県内で一意な地名はそのまま採用し、他地域と紛らわしい
-# 地名(例: 富士見=埼玉、伊勢崎=群馬)は避けるか、市区町村名までの完全な語句にしている。
-TOKAI_KEYWORDS = (
-    "愛知県", "岐阜県", "三重県", "静岡県",
-    # 愛知県
-    "名古屋", "ナゴヤ", "熱田", "一宮", "豊田", "岡崎", "豊橋", "瀬戸", "半田",
-    "春日井", "津島", "碧南", "刈谷", "豊明", "安城", "西尾", "蒲郡", "犬山",
-    "常滑", "江南", "小牧", "稲沢", "新城", "東海市", "大府", "知多", "知立",
-    "尾張旭", "高浜", "岩倉", "日進", "田原", "愛西", "清須", "清洲",
-    "北名古屋", "弥富", "みよし", "長久手", "東郷", "則武", "大須", "mozo",
-    # 岐阜県
-    "岐阜", "大垣", "高山", "多治見", "関市", "中津川", "瑞浪", "羽島", "恵那",
-    "美濃加茂", "土岐", "各務原", "可児",
-    # 三重県
-    "四日市", "伊勢市", "松阪", "桑名", "鈴鹿", "名張", "亀山",
-    # 静岡県
-    "静岡", "浜松", "沼津", "三島", "富士宮", "富士市", "磐田", "焼津", "掛川",
-    "藤枝", "御殿場", "袋井", "長泉", "浜北",
-)
-
-# TOKAI_KEYWORDSに部分一致しても実際は東海地方ではない語句(誤検知対策)。
-TOKAI_EXCLUDE_KEYWORDS = (
-    "瀬戸内",  # 「瀬戸」に部分一致するが中国・四国地方
-    "小田原",  # 「田原」に部分一致するが神奈川県
-)
-
-
-def is_tokai_store(store_name: str) -> bool:
-    if any(kw in store_name for kw in TOKAI_EXCLUDE_KEYWORDS):
-        return False
-    return any(kw in store_name for kw in TOKAI_KEYWORDS)
 
 
 def fetch(url: str, retries: int = 2) -> str:
@@ -266,39 +227,6 @@ def scrape_taito(products, product_index, stores, store_index, placements):
 # ---------------------------------------------------------------------------
 
 
-def keep_tokai_stores(
-    products: list[dict],
-    stores: list[dict],
-    placements: list[list[int]],
-) -> tuple[list[dict], list[dict], list[list[int]]]:
-    """店舗名から東海地方(愛知・岐阜・三重・静岡)と判定できる店舗だけを残し、products/placementsも絞り込む。"""
-    kept_store_indices = {idx for idx, store in enumerate(stores) if is_tokai_store(store["name"])}
-
-    store_remap: dict[int, int] = {}
-    new_stores: list[dict] = []
-    for old_idx in sorted(kept_store_indices):
-        store_remap[old_idx] = len(new_stores)
-        new_stores.append(stores[old_idx])
-
-    used_product_indices: set[int] = set()
-    filtered_placements: list[list[int]] = []
-    for product_idx, store_idx in placements:
-        if store_idx not in store_remap:
-            continue
-        used_product_indices.add(product_idx)
-        filtered_placements.append([product_idx, store_remap[store_idx]])
-
-    product_remap: dict[int, int] = {}
-    new_products: list[dict] = []
-    for old_idx in sorted(used_product_indices):
-        product_remap[old_idx] = len(new_products)
-        new_products.append(products[old_idx])
-
-    new_placements = [[product_remap[p], s] for p, s in filtered_placements]
-
-    return new_products, new_stores, new_placements
-
-
 def main():
     products: list[dict] = []
     product_index: dict[str, int] = {}
@@ -311,9 +239,6 @@ def main():
             scraper(products, product_index, stores, store_index, placements)
         except Exception as e:
             print(f"[error] {scraper.__name__} が失敗しました: {e}", file=sys.stderr)
-
-    print(f"絞り込み前: 店舗{len(stores)} / 商品{len(products)}種類 / 設置{len(placements)}件")
-    products, stores, placements = keep_tokai_stores(products, stores, placements)
 
     output = {
         "updatedAt": time.strftime("%Y-%m-%dT%H:%M:%S+09:00", time.localtime()),
