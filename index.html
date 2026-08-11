@@ -148,6 +148,16 @@
   </div>
 </dialog>
 
+<!-- 商品一覧モーダル(店舗名検索で、その店舗の取扱商品を見る場合) -->
+<dialog id="productsModal" class="modal">
+  <div class="modalDetail">
+    <button type="button" class="modalClose" data-close>✕</button>
+    <h2 id="productsModalStoreName"></h2>
+    <p class="storesModal_hint">この店舗で見つかっている商品一覧です。タップすると詳細が見られます。</p>
+    <ul id="productsModalList" class="storeList"></ul>
+  </div>
+</dialog>
+
 <!-- 共有モーダル -->
 <dialog id="shareModal" class="modal">
   <div class="modalDetail">

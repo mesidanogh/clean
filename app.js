@@ -63,6 +63,9 @@ const els = {
   storesModalPhoto: document.getElementById("storesModalPhoto"),
   storesModalProductName: document.getElementById("storesModalProductName"),
   storesModalList: document.getElementById("storesModalList"),
+  productsModal: document.getElementById("productsModal"),
+  productsModalStoreName: document.getElementById("productsModalStoreName"),
+  productsModalList: document.getElementById("productsModalList"),
   shareBtn: document.getElementById("shareBtn"),
   toast: document.getElementById("toast"),
   dataInfo: document.getElementById("dataInfo"),
@@ -192,9 +195,10 @@ els.clearSearch.addEventListener("click", () => {
 });
 
 // ---------- Render list ----------
-// 商品名検索モードでは、同じ商品が複数店舗に置かれていても1枚のカードにまとめ、
-// タップしたら店舗一覧(storesModal)を開く形にする。店舗名検索モードでは
-// 「その店舗に何があるか」を見たいので、従来どおり1件ずつ表示する。
+// 商品名検索モードでは同じ商品が複数店舗に置かれていても1枚のカードにまとめ、
+// タップすると店舗一覧(storesModal)を開く。店舗名検索モードではその逆に、
+// 同じ店舗の商品をまとめて1枚のカードにし、タップすると取扱商品一覧
+// (productsModal)を開く。
 function groupByProduct(records) {
   const groups = [];
   const indexByName = new Map();
@@ -212,6 +216,22 @@ function groupByProduct(records) {
   return groups;
 }
 
+function groupByStore(records) {
+  const groups = [];
+  const indexByName = new Map();
+  records.forEach((s) => {
+    const key = (s.storeName || "").trim();
+    let group = indexByName.get(key);
+    if (!group) {
+      group = { storeName: s.storeName, records: [] };
+      indexByName.set(key, group);
+      groups.push(group);
+    }
+    group.records.push(s);
+  });
+  return groups;
+}
+
 function render() {
   const kw = els.searchInput.value.trim().toLowerCase();
   const filtered = allRecords.filter((s) => {
@@ -220,20 +240,19 @@ function render() {
     return (field || "").toLowerCase().includes(kw);
   });
 
-  const groups = searchMode === "product" ? groupByProduct(filtered) : null;
-  const displayCount = groups ? groups.length : filtered.length;
+  const groups = searchMode === "product" ? groupByProduct(filtered) : groupByStore(filtered);
 
   els.resultCount.textContent = kw
-    ? `${displayCount}件ヒット`
-    : `全${displayCount}件`;
+    ? `${groups.length}件ヒット`
+    : `全${groups.length}件`;
 
   els.list.innerHTML = "";
-  els.emptyState.hidden = displayCount > 0;
+  els.emptyState.hidden = groups.length > 0;
 
-  if (groups) {
+  if (searchMode === "product") {
     groups.forEach((group) => renderProductCard(group));
   } else {
-    filtered.forEach((s) => renderSightingCard(s));
+    groups.forEach((group) => renderStoreCard(group));
   }
 }
 
@@ -277,23 +296,29 @@ function renderCardMeta(s) {
   `;
 }
 
-function renderSightingCard(s) {
+function renderStoreCard(group) {
+  const first = group.records[0];
+  const multi = group.records.length > 1;
   const card = document.createElement("button");
   card.type = "button";
   card.className = "card";
   card.innerHTML = `
-    <div class="card_thumb">${
-      s.photoUrl
-        ? `<img src="${s.photoUrl}" alt="" onerror="this.remove()">`
-        : `🎁`
-    }</div>
+    <div class="card_thumb">🏬</div>
     <div class="card_body">
-      <p class="card_name">${escapeHtml(s.productName)}</p>
-      <p class="card_store">${escapeHtml(s.storeName)}</p>
-      <div class="card_meta">${renderCardMeta(s)}</div>
+      <p class="card_name">${escapeHtml(group.storeName)}</p>
+      <p class="card_store">${multi ? `${group.records.length}件の商品があります` : escapeHtml(first.productName)}</p>
+      <div class="card_meta">
+        ${multi ? "" : renderCardMeta(first)}
+      </div>
     </div>
   `;
-  card.addEventListener("click", () => openDetail(s));
+  card.addEventListener("click", () => {
+    if (multi) {
+      openProductsList(group);
+    } else {
+      openDetail(first);
+    }
+  });
   els.list.appendChild(card);
 }
 
@@ -329,6 +354,34 @@ function openStoresList(group) {
   });
 
   els.storesModal.showModal();
+}
+
+// その店舗にある商品の一覧を表示する。
+function openProductsList(group) {
+  els.productsModalStoreName.textContent = group.storeName;
+
+  els.productsModalList.innerHTML = "";
+  group.records.forEach((s) => {
+    const li = document.createElement("li");
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "storeRow";
+    row.innerHTML = `
+      <div class="storeRow_body">
+        <p class="storeRow_name">${escapeHtml(s.productName)}</p>
+        <div class="storeRow_meta">${renderCardMeta(s)}</div>
+      </div>
+      <span class="storeRow_arrow">›</span>
+    `;
+    row.addEventListener("click", () => {
+      els.productsModal.close();
+      openDetail(s);
+    });
+    li.appendChild(row);
+    els.productsModalList.appendChild(li);
+  });
+
+  els.productsModal.showModal();
 }
 
 function escapeHtml(str) {
